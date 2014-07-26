@@ -51,39 +51,98 @@ static const PROGMEM uint8_t smile[48 * 48 / 8] = {
 byte pin_m1in1 = A0;
 byte pin_m1in2 = A1;
 byte pin_m1pwm = 5;
+int m1pwmvalue = 0;
+byte pin_m2in1 = A2;
+byte pin_m2in2 = A3;
+byte pin_m2pwm = 6;
+int m2pwmvalue = 0;
+
+
+//////////////////////////////
+
+void display_smile()
+{
+	lcd.clear();
+	lcd.draw(smile, 40, 8, 48, 48);
+}
+
+void display_message()
+{
+  	lcd.clear();
+//	lcd.setCursor(0, 0);
+//	lcd.setFont(FONT_SIZE_SMALL);
+//	lcd.print("Hello, world!");
+
+	lcd.setCursor(0, 0);
+	lcd.setFont(FONT_SIZE_LARGE);
+	lcd.print("My name is");
+	lcd.setCursor(0, 2);
+	lcd.setFont(FONT_SIZE_XLARGE);
+	lcd.print("Tiny Tim! v0.1");
+
+	lcd.setCursor(0, 6);
+	lcd.setFont(FONT_SIZE_MEDIUM);
+	lcd.print("Where's Terry?");
+
+
+//	lcd.setCursor(64, 3);
+//	lcd.setFont(FONT_SIZE_MEDIUM);
+//	lcd.printLong(12345678);
+
+//	lcd.setCursor(0, 4);
+//	lcd.setFont(FONT_SIZE_LARGE);
+//	lcd.printLong(12345678);
+
+}
+
+//////////////////////////////
 
 
 void setup()
 {
   Serial.begin(57600);
-  while (!Serial) ;
+//  while (!Serial) ;
       printf_begin();
 
   Serial.println("starting up...");
-  
+
 	lcd.begin();
-        pinMode( pin_m1in1, OUTPUT );
-        pinMode( pin_m1in2, OUTPUT );
-        pinMode( pin_m1pwm, OUTPUT );
-        digitalWrite( pin_m1in1, LOW );
-        digitalWrite( pin_m1in2, HIGH );
-        analogWrite( pin_m1pwm, 200 );
-        
   Serial.println("starting radio...");
-       
         radio.begin();
         radio.setRetries(15,15);
-        
+       
       radio.openWritingPipe(pipes[1]);
       radio.openReadingPipe(1,pipes[0]);
       
         radio.startListening();
         radio.printDetails();
+
+
+
+        pinMode( pin_m1in1, OUTPUT );
+        pinMode( pin_m1in2, OUTPUT );
+        pinMode( pin_m1pwm, OUTPUT );
+        digitalWrite( pin_m1in2, LOW );
+        digitalWrite( pin_m1in1, HIGH );
+        analogWrite( pin_m1pwm, m1pwmvalue );
+
+        pinMode( pin_m2in1, OUTPUT );
+        pinMode( pin_m2in2, OUTPUT );
+        pinMode( pin_m2pwm, OUTPUT );
+        digitalWrite( pin_m2in2, LOW );
+        digitalWrite( pin_m2in1, HIGH );
+        analogWrite( pin_m2pwm, m2pwmvalue );
+
   Serial.println("setup complete!");
+  display_smile();
 }
+
+
+int displayiter = 0;
 
 void loop()
 {
+
     // if there is data ready
     if ( radio.available() )
     {
@@ -99,8 +158,33 @@ void loop()
         // Fetch the payload, and see if this was the last one.
         done = radio.read( &msg, sizeof(radiomsg) );
 
-        // Spew it
         printf("Got payload done:%d %d  h:%d v:%d...\n\r", done, msg.type, msg.joyxy.h, msg.joyxy.v );
+        if( done ) 
+        {
+
+          m1pwmvalue = msg.joyxy.h;
+          if( m1pwmvalue > 510 )
+              m1pwmvalue = 510;
+          m1pwmvalue /= 2;
+          printf("*** m1pwmvalue:%d\n",m1pwmvalue);
+
+          if( msg.joyxy.h < 512 ) 
+          {
+            m2pwmvalue = 510;
+          }
+          else
+            m2pwmvalue = 1024 - msg.joyxy.h;
+          m2pwmvalue /= 2;
+
+          if( msg.joyxy.v < 512+ 50 )
+          {
+            m1pwmvalue = 0;
+            m2pwmvalue = 0;
+          }          
+          analogWrite( pin_m1pwm, m1pwmvalue );
+          analogWrite( pin_m2pwm, m2pwmvalue );
+        }
+
 
 	// Delay just a little bit to let the other unit
 	// make the transition to receiver
@@ -108,7 +192,26 @@ void loop()
       }
 
     }
-    
+
+    int displayiterold = displayiter;
+    int displayitermax = 2;
+    unsigned long m = millis();
+    if( m % 2000 == 0 )
+    {
+      displayiter++;
+    }
+    if( displayiterold != displayiter )
+    {
+       if( displayiter % displayitermax == 0 )
+       {
+         display_message();
+       }
+       if( displayiter % displayitermax == 1 )
+       {
+         display_smile();
+       }
+    }
+
 //    Serial << "looping..." << endl;
 //    delay(300);
 
