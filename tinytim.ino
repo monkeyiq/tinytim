@@ -6,6 +6,10 @@
 #include "nRF24L01.h"
 #include "RF24.h"
 #include "printf.h"
+#include <Adafruit_NeoPixel.h>
+
+byte neopixel_pin = 8;
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(2, neopixel_pin, NEO_GRB + NEO_KHZ800);
 
 RF24 radio(9,10);
 // Radio pipe addresses for the 2 nodes to communicate.
@@ -39,11 +43,11 @@ static const PROGMEM uint8_t smile[48 * 48 / 8] = {
 
 byte pin_m1in1  = A0;
 byte pin_m1in2  = A1;
-byte pin_m1pwm  = 5;
+byte pin_m1pwm  = 6;
 int  m1pwmvalue = 0;
 byte pin_m2in1  = A2;
 byte pin_m2in2  = A3;
-byte pin_m2pwm  = 6;
+byte pin_m2pwm  = 5;
 int  m2pwmvalue = 0;
 
 
@@ -111,6 +115,13 @@ void setup()
 
     Serial.println("setup complete!");
     display_smile();
+    
+    pixels.begin();
+    pixels.show();
+    pixels.setPixelColor(0, 200, 0, 0 );
+    pixels.setPixelColor(1, 200, 0, 0 );
+    pixels.show();
+
 }
 
 
@@ -159,6 +170,20 @@ void loop()
                 }          
                 analogWrite( pin_m1pwm, m1pwmvalue );
                 analogWrite( pin_m2pwm, m2pwmvalue );
+                
+                int m1led = m1pwmvalue % 255;
+                int m2led = m2pwmvalue % 255;
+                if( !m1pwmvalue )
+                  m1led = 0;
+                if( !m2pwmvalue )
+                  m2led = 0;      
+                if( m1pwmvalue > 254 )
+                  m1led = 254;
+                if( m2pwmvalue > 254 )
+                  m2led = 254;                      
+                pixels.setPixelColor(0, 200, m1led , 0 );
+                pixels.setPixelColor(1, 200, 0, m2led );
+                pixels.show();                
             }
 
 
