@@ -133,7 +133,7 @@ void loop()
     // if there is data ready
     if ( radio.available() )
     {
-        Serial << "packet!!!!..." << endl;
+//        Serial << "packet!!!!..." << endl;
   
         // Dump the payloads until we've gotten everything
         unsigned long got_time;
@@ -145,7 +145,7 @@ void loop()
             // Fetch the payload, and see if this was the last one.
             done = radio.read( &msg, sizeof(radiomsg) );
 
-            printf("Got payload done:%d %d  h:%d v:%d...\n\r", done, msg.type, msg.joyxy.h, msg.joyxy.v );
+//            printf("Got payload done:%d %d  h:%d v:%d...\n\r", done, msg.type, msg.joyxy.h, msg.joyxy.v );
             if( done ) 
             {
 
@@ -153,7 +153,7 @@ void loop()
                 if( m1pwmvalue > 510 )
                     m1pwmvalue = 510;
                 m1pwmvalue /= 2;
-                printf("*** m1pwmvalue:%d\n",m1pwmvalue);
+//                printf("*** m1pwmvalue:%d\n",m1pwmvalue);
 
                 if( msg.joyxy.h < 512 ) 
                 {
@@ -163,6 +163,7 @@ void loop()
                     m2pwmvalue = 1024 - msg.joyxy.h;
                 m2pwmvalue /= 2;
 
+                // if the joystick is not forward enough, stop
                 if( msg.joyxy.v < 512+ 50 )
                 {
                     m1pwmvalue = 0;
