@@ -6,4 +6,5 @@ LIBRARIES := LedControl
 CFLAGS   := $(CFLAGS)   -DTWI_BUFFER_LENGTH=16 -DMAX_TIMERS=2 # -DUSE_MP3_REFILL_MEANS=USE_MP3_SimpleTimer
 CXXFLAGS := $(CXXFLAGS) -DTWI_BUFFER_LENGTH=16 -DMAX_TIMERS=2 # -DUSE_MP3_REFILL_MEANS=USE_MP3_SimpleTimer
 
+AVRDUDE_ARD_BAUDRATE := 57600
 include $(shell echo $(HOME))/sketchbook/Arduino-Makefile/arduino-mk/Arduino.mk

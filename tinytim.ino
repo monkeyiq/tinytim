@@ -41,14 +41,25 @@ static const PROGMEM uint8_t smile[48 * 48 / 8] = {
 
 
 
-byte pin_m1in1  = A0;
-byte pin_m1in2  = A1;
+byte pin_m1in1  = A2;
+byte pin_m1in2  = A3;
 byte pin_m1pwm  = 6;
 int  m1pwmvalue = 0;
-byte pin_m2in1  = A2;
-byte pin_m2in2  = A3;
+byte pin_m2in1  = A0;
+byte pin_m2in2  = A1;
 byte pin_m2pwm  = 5;
 int  m2pwmvalue = 0;
+
+
+
+/* byte pin_m1in1  = A0; */
+/* byte pin_m1in2  = A1; */
+/* byte pin_m1pwm  = 6; */
+/* int  m1pwmvalue = 0; */
+/* byte pin_m2in1  = A2; */
+/* byte pin_m2in2  = A3; */
+/* byte pin_m2pwm  = 5; */
+/* int  m2pwmvalue = 0; */
 
 
 //////////////////////////////
@@ -68,7 +79,7 @@ void display_message()
 	lcd.print("My name is");
 	lcd.setCursor(0, 2);
 	lcd.setFont(FONT_SIZE_XLARGE);
-	lcd.print("Tiny Tim! v0.1");
+	lcd.print("Tiny Tim! v0.2");
 
 	lcd.setCursor(0, 6);
 	lcd.setFont(FONT_SIZE_MEDIUM);
@@ -127,6 +138,76 @@ void setup()
 
 int displayiter = 0;
 
+/**
+ * pin is the pin to pwm the signal on,
+ * 
+ * speed is between -255 and 255 to be forward/reverse at up to full
+ * speed in each direction.
+ */
+void setMotorSpeed( byte pin, int speed )
+{
+    int pin_in1 = (pin == pin_m1pwm) ? pin_m1in1 : pin_m2in1;
+    int pin_in2 = (pin == pin_m1pwm) ? pin_m1in2 : pin_m2in2;
+
+    if( speed < -255 )
+        speed = -255;
+    if( speed > 255 )
+        speed = 255;
+    
+    if( speed >= 0 ) 
+    {
+        digitalWrite( pin_in2, LOW );
+        digitalWrite( pin_in1, HIGH );
+    }
+    else
+    {
+        digitalWrite( pin_in2, HIGH );
+        digitalWrite( pin_in1, LOW );
+    }
+    analogWrite( pin, abs(speed) );
+}
+
+void setPixelColor( byte pix, int pwm, byte g = 0, byte b = 0 )
+{
+    byte r = 200;
+
+    
+    if( pwm >= 0 ) 
+    {
+        if( pix == 0 )
+            printf("setPixelColor() p %d g %d b %d\n", pwm, g, b );
+        pixels.setPixelColor(pix, r, g, b );
+    }
+    else
+    {
+        int rr = r;
+        int gg = 0;
+        int bb = 0;
+        if( pix == 0 ) 
+        {
+            rr = 254-bb;
+            bb = 254-g;
+            gg = bb;
+        }
+        if( pix == 1 )
+        {
+            rr = 254-bb;
+            gg = 254-b;
+            bb = gg;
+        }
+        
+        
+        /* if( pix == 0 ) */
+        /*     printf("setPixelColor() p %d g %d b %d  gg:%d\n", pwm, g, b, gg ); */
+
+        
+        pixels.setPixelColor(pix, r, gg, bb );
+    }
+    
+
+}
+
+
 void loop()
 {
 
@@ -146,14 +227,15 @@ void loop()
             done = radio.read( &msg, sizeof(radiomsg) );
 
 //            printf("Got payload done:%d %d  h:%d v:%d...\n\r", done, msg.type, msg.joyxy.h, msg.joyxy.v );
-            if( done ) 
+            if( msg.type == RMSG_JOYXY ) 
             {
 
                 m1pwmvalue = msg.joyxy.h;
                 if( m1pwmvalue > 510 )
                     m1pwmvalue = 510;
-                m1pwmvalue /= 2;
-//                printf("*** m1pwmvalue:%d\n",m1pwmvalue);
+                m1pwmvalue -= 255;
+//                m1pwmvalue /= 2;
+                printf("*** m1pwmvalue:%d\n",m1pwmvalue);
 
                 if( msg.joyxy.h < 512 ) 
                 {
@@ -161,16 +243,25 @@ void loop()
                 }
                 else
                     m2pwmvalue = 1024 - msg.joyxy.h;
-                m2pwmvalue /= 2;
+                m2pwmvalue -= 255;
+//                m2pwmvalue /= 2;
 
                 // if the joystick is not forward enough, stop
-                if( msg.joyxy.v < 512+ 50 )
+                byte deadZone = 50;
+                if( msg.joyxy.v < (512 + deadZone) && msg.joyxy.v > (512 - deadZone) )
                 {
                     m1pwmvalue = 0;
                     m2pwmvalue = 0;
-                }          
-                analogWrite( pin_m1pwm, m1pwmvalue );
-                analogWrite( pin_m2pwm, m2pwmvalue );
+                }
+                // reverse.
+                if( msg.joyxy.v  < (512 - deadZone))
+                {
+                    m1pwmvalue *= -1;
+                    m2pwmvalue *= -1;
+                }
+                
+                setMotorSpeed( pin_m1pwm, m1pwmvalue );
+                setMotorSpeed( pin_m2pwm, m2pwmvalue );
                 
                 int m1led = m1pwmvalue % 255;
                 int m2led = m2pwmvalue % 255;
@@ -181,9 +272,10 @@ void loop()
                 if( m1pwmvalue > 254 )
                   m1led = 254;
                 if( m2pwmvalue > 254 )
-                  m2led = 254;                      
-                pixels.setPixelColor(0, 200, m1led , 0 );
-                pixels.setPixelColor(1, 200, 0, m2led );
+                  m2led = 254;
+
+                setPixelColor( 0, m1pwmvalue, m1led, 0 );
+                setPixelColor( 1, m2pwmvalue, 0, m2led );
                 pixels.show();                
             }
 
@@ -214,3 +306,5 @@ void loop()
         }
     }
 }
+
+
